@@ -33,10 +33,13 @@ s_t = \left[ \tilde{\sigma}_t, \bar{\sigma}_t^{(k)}, \hat{\sigma}_t^{(k)}, m_t \
 ```
 
 where:
-- $\tilde{\sigma}_t^{(i)} = (\sigma_t^{(i)} - \bar{\sigma}_t^{(i)}) / \hat{\sigma}_t^{(i)}$ is the z-normalized signal
-- $\bar{\sigma}_t^{(k)} = \frac{1}{k}\sum_{j=t-k}^{t} \sigma_j$ is the rolling mean over lookback window $k$
-- $\hat{\sigma}_t^{(k)} = \sqrt{\frac{1}{k}\sum_{j=t-k}^{t}(\sigma_j - \bar{\sigma}_t^{(k)})^2}$ is the rolling standard deviation
-- $m_t = (\sigma_t - \bar{\sigma}_t^{(k)}) / \hat{\sigma}_t^{(k)}$ is the momentum indicator
+
+| Symbol | Formula | Description |
+|--------|---------|-------------|
+| $\tilde{\sigma}$ | $(\sigma_t^{(i)} - \bar{\sigma}_t^{(i)}) / \hat{\sigma}_t^{(i)}$ | z-normalized signal |
+| $\bar{\sigma}$ | $(1/k)\sum_{j} \sigma_j$ | rolling mean over lookback $k$ |
+| $\hat{\sigma}$ | $\sqrt{(1/k)\sum_{j}(\sigma_j - \bar{\sigma})^2}$ | rolling standard deviation |
+| $m_t$ | $(\sigma_t - \bar{\sigma}) / \hat{\sigma}$ | momentum indicator |
 
 **Action space** $\mathcal{A} = \Delta^{n-1}$: The $(n-1)$-simplex representing portfolio weights:
 
