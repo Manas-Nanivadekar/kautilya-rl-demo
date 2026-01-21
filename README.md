@@ -26,43 +26,58 @@ python main.py all
 
 We formulate the signal weighting problem as a finite-horizon MDP $\mathcal{M} = (\mathcal{S}, \mathcal{A}, P, R, \gamma, H)$ where:
 
-- **State space** $\mathcal{S} \subseteq \mathbb{R}^{4n}$: For $n$ signals, the state vector at time $t$ is:
-$$s\_t = \left[ \tilde{\sigma}\_t, \bar{\sigma}\_t^{(k)}, \hat{\sigma}\_t^{(k)}, m\_t \right] \in \mathbb{R}^{4n}$$
+**State space** $\mathcal{S} \subseteq \mathbb{R}^{4n}$: For $n$ signals, the state vector at time $t$ is:
 
-  where:
-  - $\tilde{\sigma}\_t^{(i)} = \frac{\sigma\_t^{(i)} - \bar{\sigma}\_t^{(i)}}{\hat{\sigma}\_t^{(i)}}$ is the z-normalized signal
-  - $\bar{\sigma}\_t^{(k)} = \frac{1}{k}\sum\_{j=t-k}^{t} \sigma\_j$ is the rolling mean over lookback window $k$
-  - $\hat{\sigma}\_t^{(k)} = \sqrt{\frac{1}{k}\sum\_{j=t-k}^{t}(\sigma\_j - \bar{\sigma}\_t^{(k)})^2}$ is the rolling standard deviation
-  - $m\_t = \frac{\sigma\_t - \bar{\sigma}\_t^{(k)}}{\hat{\sigma}\_t^{(k)}}$ is the momentum indicator
+```math
+s_t = \left[ \tilde{\sigma}_t, \bar{\sigma}_t^{(k)}, \hat{\sigma}_t^{(k)}, m_t \right] \in \mathbb{R}^{4n}
+```
 
-- **Action space** $\mathcal{A} = \Delta^{n-1}$: The $(n-1)$-simplex representing portfolio weights:
-$$\mathcal{A} = \left\{ w \in \mathbb{R}^n : w\_i \geq 0, \sum\_{i=1}^{n} w\_i = 1 \right\}$$
+where:
+- $\tilde{\sigma}_t^{(i)} = (\sigma_t^{(i)} - \bar{\sigma}_t^{(i)}) / \hat{\sigma}_t^{(i)}$ is the z-normalized signal
+- $\bar{\sigma}_t^{(k)} = \frac{1}{k}\sum_{j=t-k}^{t} \sigma_j$ is the rolling mean over lookback window $k$
+- $\hat{\sigma}_t^{(k)} = \sqrt{\frac{1}{k}\sum_{j=t-k}^{t}(\sigma_j - \bar{\sigma}_t^{(k)})^2}$ is the rolling standard deviation
+- $m_t = (\sigma_t - \bar{\sigma}_t^{(k)}) / \hat{\sigma}_t^{(k)}$ is the momentum indicator
 
-- **Transition dynamics** $P: \mathcal{S} \times \mathcal{A} \rightarrow \Delta(\mathcal{S})$: Determined by exogenous market dynamics (model-free setting).
+**Action space** $\mathcal{A} = \Delta^{n-1}$: The $(n-1)$-simplex representing portfolio weights:
 
-- **Reward function** $R: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}$:
-$$R(s\_t, a\_t) = 100 \cdot \left( \phi\_t \cdot r\_t^{(p)} - c \cdot |\phi\_t - \phi\_{t-1}| \right)$$
+```math
+\mathcal{A} = \left\{ w \in \mathbb{R}^n : w_i \geq 0, \sum_{i=1}^{n} w_i = 1 \right\}
+```
 
-  where:
-  - $\phi\_t = \tanh\left(3 \cdot \sum\_{i=1}^{n} w\_t^{(i)} \sigma\_t^{(i)}\right) \in [-1, 1]$ is the position
-  - $r\_t^{(p)} = \frac{p\_{t+1} - p\_t}{p\_t}$ is the price return
-  - $c$ is the transaction cost coefficient
+**Transition dynamics** $P: \mathcal{S} \times \mathcal{A} \rightarrow \Delta(\mathcal{S})$: Determined by exogenous market dynamics (model-free setting).
+
+**Reward function** $R: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}$:
+
+```math
+R(s_t, a_t) = 100 \cdot \left( \phi_t \cdot r_t^{(p)} - c \cdot |\phi_t - \phi_{t-1}| \right)
+```
+
+where:
+- $\phi_t = \tanh(3 \cdot \sum_{i=1}^{n} w_t^{(i)} \sigma_t^{(i)}) \in [-1, 1]$ is the position
+- $r_t^{(p)} = (p_{t+1} - p_t) / p_t$ is the price return
+- $c$ is the transaction cost coefficient
 
 ### 2. Policy Parameterization
 
-We employ a stochastic policy $\pi\_\theta: \mathcal{S} \rightarrow \Delta(\mathcal{A})$ parameterized by a neural network with shared feature extraction:
+We employ a stochastic policy $\pi_\theta: \mathcal{S} \rightarrow \Delta(\mathcal{A})$ parameterized by a neural network with shared feature extraction:
 
-$$f\_\psi(s) = \tanh(W\_2 \cdot \tanh(W\_1 s + b\_1) + b\_2) \in \mathbb{R}^d$$
+```math
+f_\psi(s) = \tanh(W_2 \cdot \tanh(W_1 s + b_1) + b_2) \in \mathbb{R}^d
+```
 
 The policy outputs parameters of a factorized Gaussian in the pre-softmax space:
 
-$$\pi\_\theta(a|s) = \mathcal{N}\left(\mu\_\theta(s), \text{diag}(\sigma\_\theta^2)\right)$$
+```math
+\pi_\theta(a|s) = \mathcal{N}\left(\mu_\theta(s), \text{diag}(\sigma_\theta^2)\right)
+```
 
-where $\mu\_\theta(s) = W\_\mu f\_\psi(s) + b\_\mu \in \mathbb{R}^n$ and $\log \sigma\_\theta \in \mathbb{R}^n$ is a learnable parameter vector.
+where $\mu_\theta(s) = W_\mu f_\psi(s) + b_\mu \in \mathbb{R}^n$ and $\log \sigma_\theta \in \mathbb{R}^n$ is a learnable parameter vector.
 
 The actual weight vector is obtained via the softmax transformation:
 
-$$w = \text{softmax}(z), \quad z \sim \pi\_\theta(\cdot|s)$$
+```math
+w = \text{softmax}(z), \quad z \sim \pi_\theta(\cdot|s)
+```
 
 This reparameterization ensures $w \in \Delta^{n-1}$ while allowing unconstrained optimization in $\mathbb{R}^n$.
 
@@ -72,11 +87,15 @@ This reparameterization ensures $w \in \Delta^{n-1}$ while allowing unconstraine
 
 The objective is to maximize the expected discounted return:
 
-$$J(\theta) = \mathbb{E}\_{\tau \sim \pi\_\theta}\left[\sum\_{t=0}^{H} \gamma^t R(s\_t, a\_t)\right]$$
+```math
+J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta}\left[\sum_{t=0}^{H} \gamma^t R(s_t, a_t)\right]
+```
 
 By the policy gradient theorem (Sutton et al., 2000):
 
-$$\nabla\_\theta J(\theta) = \mathbb{E}\_{\tau \sim \pi\_\theta}\left[\sum\_{t=0}^{H} \nabla\_\theta \log \pi\_\theta(a\_t|s\_t) \cdot A^{\pi\_\theta}(s\_t, a\_t)\right]$$
+```math
+\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta}\left[\sum_{t=0}^{H} \nabla_\theta \log \pi_\theta(a_t|s_t) \cdot A^{\pi_\theta}(s_t, a_t)\right]
+```
 
 where $A^\pi(s,a) = Q^\pi(s,a) - V^\pi(s)$ is the advantage function.
 
@@ -84,53 +103,73 @@ where $A^\pi(s,a) = Q^\pi(s,a) - V^\pi(s)$ is the advantage function.
 
 We estimate advantages using GAE (Schulman et al., 2016) which provides a bias-variance tradeoff controlled by $\lambda \in [0,1]$:
 
-$$\hat{A}\_t^{\text{GAE}(\gamma, \lambda)} = \sum\_{l=0}^{\infty} (\gamma \lambda)^l \delta\_{t+l}$$
+```math
+\hat{A}_t^{\text{GAE}(\gamma, \lambda)} = \sum_{l=0}^{\infty} (\gamma \lambda)^l \delta_{t+l}
+```
 
 where the TD residual is:
 
-$$\delta\_t = r\_t + \gamma V\_\phi(s\_{t+1}) - V\_\phi(s\_t)$$
+```math
+\delta_t = r_t + \gamma V_\phi(s_{t+1}) - V_\phi(s_t)
+```
 
 In practice, we compute this recursively:
 
-$$\hat{A}\_t = \delta\_t + \gamma \lambda (1 - d\_t) \hat{A}\_{t+1}$$
+```math
+\hat{A}_t = \delta_t + \gamma \lambda (1 - d_t) \hat{A}_{t+1}
+```
 
-where $d\_t \in \{0, 1\}$ is the terminal indicator.
+where $d_t \in \{0, 1\}$ is the terminal indicator.
 
 #### 3.3 Clipped Surrogate Objective
 
 PPO (Schulman et al., 2017) optimizes a clipped surrogate objective to ensure stable updates:
 
-$$L^{\text{CLIP}}(\theta) = \mathbb{E}\_t\left[\min\left(r\_t(\theta)\hat{A}\_t, \text{clip}(r\_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}\_t\right)\right]$$
+```math
+L^{\text{CLIP}}(\theta) = \mathbb{E}_t\left[\min\left(r_t(\theta)\hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\right)\right]
+```
 
 where the probability ratio is:
 
-$$r\_t(\theta) = \frac{\pi\_\theta(a\_t|s\_t)}{\pi\_{\theta\_{\text{old}}}(a\_t|s\_t)}$$
+```math
+r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}
+```
 
-The clipping mechanism with $\epsilon = 0.2$ prevents destructively large policy updates by bounding $r\_t(\theta) \in [1-\epsilon, 1+\epsilon]$ when the advantage is positive (and inversely when negative).
+The clipping mechanism with $\epsilon = 0.2$ prevents destructively large policy updates by bounding $r_t(\theta) \in [1-\epsilon, 1+\epsilon]$ when the advantage is positive (and inversely when negative).
 
 #### 3.4 Value Function Learning
 
-The critic $V\_\phi(s)$ is trained to minimize the mean squared error against empirical returns:
+The critic $V_\phi(s)$ is trained to minimize the mean squared error against empirical returns:
 
-$$L^{V}(\phi) = \mathbb{E}\_t\left[\left(V\_\phi(s\_t) - \hat{R}\_t\right)^2\right]$$
+```math
+L^{V}(\phi) = \mathbb{E}_t\left[\left(V_\phi(s_t) - \hat{R}_t\right)^2\right]
+```
 
-where $\hat{R}\_t = \hat{A}\_t + V\_{\phi\_{\text{old}}}(s\_t)$ are the GAE-based return targets.
+where $\hat{R}_t = \hat{A}_t + V_{\phi_{\text{old}}}(s_t)$ are the GAE-based return targets.
 
 #### 3.5 Entropy Regularization
 
 To encourage exploration and prevent premature convergence, we add an entropy bonus:
 
-$$H[\pi\_\theta(\cdot|s)] = -\mathbb{E}\_{a \sim \pi\_\theta}[\log \pi\_\theta(a|s)]$$
+```math
+H[\pi_\theta(\cdot|s)] = -\mathbb{E}_{a \sim \pi_\theta}[\log \pi_\theta(a|s)]
+```
 
 For our Gaussian policy:
-$$H[\mathcal{N}(\mu, \sigma^2)] = \frac{1}{2}\log(2\pi e \sigma^2) = \frac{1}{2}(1 + \log(2\pi) + 2\log\sigma)$$
+
+```math
+H[\mathcal{N}(\mu, \sigma^2)] = \frac{1}{2}\log(2\pi e \sigma^2) = \frac{1}{2}(1 + \log(2\pi) + 2\log\sigma)
+```
 
 #### 3.6 Combined Objective
 
 The full PPO objective is:
-$$L(\theta, \phi) = \mathbb{E}\_t\left[L^{\text{CLIP}}(\theta) - c\_1 L^V(\phi) + c\_2 H[\pi\_\theta(\cdot|s\_t)]\right]$$
 
-with coefficients $c\_1 = 0.5$ (value loss) and $c\_2 = 0.01$ (entropy).
+```math
+L(\theta, \phi) = \mathbb{E}_t\left[L^{\text{CLIP}}(\theta) - c_1 L^V(\phi) + c_2 H[\pi_\theta(\cdot|s_t)]\right]
+```
+
+with coefficients $c_1 = 0.5$ (value loss) and $c_2 = 0.01$ (entropy).
 
 ### 4. Theoretical Guarantees
 
@@ -138,16 +177,21 @@ with coefficients $c\_1 = 0.5$ (value loss) and $c\_2 = 0.01$ (entropy).
 
 PPO provides an approximate trust region guarantee. Under mild assumptions, for any policies $\pi, \pi'$:
 
-$$J(\pi') \geq J(\pi) + \mathbb{E}\_{s \sim d^{\pi}}\left[\mathbb{E}\_{a \sim \pi'}[A^\pi(s,a)] - C \cdot D\_{\text{KL}}^{\max}(\pi || \pi')\right]$$
+```math
+J(\pi') \geq J(\pi) + \mathbb{E}_{s \sim d^{\pi}}\left[\mathbb{E}_{a \sim \pi'}[A^\pi(s,a)] - C \cdot D_{\text{KL}}^{\max}(\pi \| \pi')\right]
+```
 
-where $D\_{\text{KL}}^{\max} = \max\_s D\_{\text{KL}}(\pi(\cdot|s) || \pi'(\cdot|s))$ and $C = \frac{4\gamma\epsilon}{(1-\gamma)^2}$ with $\epsilon = \max\_{s,a}|A^\pi(s,a)|$.
+where $D_{\text{KL}}^{\max} = \max_s D_{\text{KL}}(\pi(\cdot|s) \| \pi'(\cdot|s))$ and $C = \frac{4\gamma\epsilon}{(1-\gamma)^2}$ with $\epsilon = \max_{s,a}|A^\pi(s,a)|$.
 
 The clipping mechanism implicitly constrains the KL divergence, providing stability without explicit KL penalty computation.
 
 #### 4.2 Sample Complexity
 
 For $\epsilon$-optimal policy with probability $1-\delta$, PPO achieves sample complexity:
-$$\tilde{O}\left(\frac{|\mathcal{S}||\mathcal{A}|}{(1-\gamma)^3\epsilon^2}\log\frac{1}{\delta}\right)$$
+
+```math
+\tilde{O}\left(\frac{|\mathcal{S}||\mathcal{A}|}{(1-\gamma)^3\epsilon^2}\log\frac{1}{\delta}\right)
+```
 
 in the tabular setting, with function approximation bounds depending on the complexity class of the policy and value networks.
 
@@ -157,19 +201,19 @@ For comparison, we implement several heuristic weighting schemes:
 
 | Strategy | Weight Formula |
 |----------|----------------|
-| Equal Weight | $w\_i = \frac{1}{n}$ |
-| Signal Strength | $w\_i = \frac{\exp(\|\sigma\_i\|)}{\sum\_j \exp(\|\sigma\_j\|)}$ |
-| Inverse Volatility | $w\_i = \frac{1/\hat{\sigma}\_i^{(k)}}{\sum\_j 1/\hat{\sigma}\_j^{(k)}}$ |
-| Momentum | $w\_i = \frac{\exp(\rho\_i)}{\sum\_j \exp(\rho\_j)}$ where $\rho\_i = \text{corr}(\sigma^{(i)}\_{t-k:t}, r\_{t-k:t}^{(p)})$ |
+| Equal Weight | $w_i = 1/n$ |
+| Signal Strength | $w_i \propto \exp(\|\sigma_i\|)$ |
+| Inverse Volatility | $w_i \propto 1/\hat{\sigma}_i^{(k)}$ |
+| Momentum | $w_i \propto \exp(\rho_i)$ where $\rho_i = \text{corr}(\sigma_{t-k:t}^{(i)}, r_{t-k:t}^{(p)})$ |
 
 ### 6. Performance Metrics
 
 We evaluate strategies using standard risk-adjusted metrics:
 
-- **Sharpe Ratio**: $\text{SR} = \frac{\mathbb{E}[r] - r\_f}{\sigma\_r}\sqrt{252}$ (annualized)
-- **Maximum Drawdown**: $\text{MDD} = \max\_t \frac{\max\_{\tau \leq t} P\_\tau - P\_t}{\max\_{\tau \leq t} P\_\tau}$
-- **Annualized Volatility**: $\sigma\_{\text{ann}} = \sigma\_r \sqrt{252}$
-- **Win Rate**: $\mathbb{P}(r\_t > 0)$
+- **Sharpe Ratio**: $\text{SR} = \frac{\mathbb{E}[r] - r_f}{\sigma_r}\sqrt{252}$ (annualized)
+- **Maximum Drawdown**: $\text{MDD} = \max_t \frac{\max_{\tau \leq t} P_\tau - P_t}{\max_{\tau \leq t} P_\tau}$
+- **Annualized Volatility**: $\sigma_{\text{ann}} = \sigma_r \sqrt{252}$
+- **Win Rate**: $\mathbb{P}(r_t > 0)$
 
 ---
 
